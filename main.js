@@ -1,8 +1,8 @@
 const Categories = {
     IDEA: 'Idea',
+    QUOTE: 'Quote',
     RANDOM_THOUGHT: 'Random Thought',
-    TASK: 'Task',
-    QUOTE: 'Quote'
+    TASK: 'Task'
 };
 
 const Fields = {
@@ -16,6 +16,7 @@ const Fields = {
 };
 
 const columns = Object.keys(Fields).filter(fld => (fld !== 'active'));
+const summaryColumns = ['Category', 'Active', 'Inactive'];
 
 let editingTableRow;
 
@@ -80,6 +81,7 @@ function deleteElem(id, tabBodyTr) {
     tabBodyTr.parentNode.removeChild(tabBodyTr);
     notes = notes.filter(note => note.id !== id);
     clearAndHideForm();
+    createTableSummary();
 }
 
 function actElem(id, tabBodyTr = '') {
@@ -98,6 +100,7 @@ function actElem(id, tabBodyTr = '') {
     }
 
     clearAndHideForm();
+    createTableSummary();
 }
 
 function create(note, tabBodyTr = null) {
@@ -169,6 +172,7 @@ function saveElem(form) {
     }
 
     clearAndHideForm();
+    createTableSummary();
 }
 
 function createForm(parent, idName) {
@@ -237,7 +241,6 @@ function createTable(columns = [], dataArr = [], parent, idName) {
     let tabHeadTr = createElem('tr', tabHead);
     tabHeadTr.style.background = '#9d9d9d';
     for (const column of columns) {
-        // let tabHeadTh = createElem('th', tabHeadTr, '', '', column);
         createElem('th', tabHeadTr, '', '', Fields[column]);
     }
 
@@ -260,24 +263,74 @@ function createTable(columns = [], dataArr = [], parent, idName) {
     return tab;
 }
 
+function createTableSummary() {
+    let summaryWrapper = document.getElementById('summaryWrapper');
+
+    while (summaryWrapper.firstChild) {
+        summaryWrapper.firstChild.remove();
+    }
+
+    let tab = createElem('table', summaryWrapper, 'summary');
+    tab.setAttribute('border', '2');
+
+    let tabHead = createElem('thead', tab);
+    let tabHeadTr = createElem('tr', tabHead);
+    tabHeadTr.style.background = '#9d9d9d';
+
+    for (const column of summaryColumns) {
+        createElem('th', tabHeadTr, '', '', column);
+    }
+
+    let tabBody = createElem('tbody', tab, 'summary_tabBody');
+
+    const summaryObj = {
+        [Categories.IDEA]: [0, 0],
+        [Categories.QUOTE]: [0, 0],
+        [Categories.RANDOM_THOUGHT]: [0, 0],
+        [Categories.TASK]: [0, 0]
+    };
+
+    for (let i = 0; i < notes.length; i++) {
+        const note = notes[i];
+        const ind = note.active ? 0 : 1;
+        summaryObj[note.category][ind]++;
+    }
+
+    for (const summaryObjKey in summaryObj) {
+        let tabBodyTr = createElem('tr', tabBody);
+        createElem('td', tabBodyTr, '', '', summaryObjKey);
+        createElem('td', tabBodyTr, '', '', summaryObj[summaryObjKey][0]);
+        createElem('td', tabBodyTr, '', '', summaryObj[summaryObjKey][1]);
+    }
+
+    return tab;
+}
+
 function refresh() {
     let mainDiv = document.getElementById('mainDiv');
     mainDiv.parentNode.removeChild(mainDiv);
     mainDiv = createElem('div', document.body, 'mainDiv');
 
+    createElem('hr', mainDiv);
     let activeNotesWrapper = createElem('div', mainDiv, '', '', 'Active Notes');
     let activeNotes = notes.filter(note => note.active);
     createTable(columns, activeNotes, activeNotesWrapper, 'activeNotes');
 
-    let btnCreate = createElem('button', activeNotesWrapper, '', '', 'Create Note');
+    createElem('hr', mainDiv);
+    let btnCreate = createElem('button', mainDiv, '', '', 'Create Note');
     btnCreate.onclick = () => create({});
 
     let form = createForm(mainDiv, 'createEditForm');
     form.hidden = true;
 
+    createElem('hr', mainDiv);
     let inactiveNotesWrapper = createElem('div', mainDiv, '', '', 'Inactive Notes');
     let inactiveNotes = notes.filter(note => !note.active);
     createTable(columns, inactiveNotes, inactiveNotesWrapper, 'inactiveNotes');
+
+    createElem('hr', mainDiv);
+    createElem('div', mainDiv, 'summaryWrapper', '', 'Summary');
+    createTableSummary();
 }
 
 let btnRefresh = createElem('button', document.body, '', '', 'Refresh');
