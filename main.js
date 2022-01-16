@@ -26,16 +26,19 @@ const uid = function () {
 function parseDates(str) {
     const dates = [];
     const arrFromStr = str.split(' ');
-    for (const arrFromStrElement of arrFromStr) {
-        const currentDate = Date.parse(arrFromStrElement);
-        (!isNaN(currentDate)) && dates.push(new Date(currentDate));
+    for (const currentStr of arrFromStr) {
+        if (+currentStr + '' !== currentStr) {
+            const currentDate = Date.parse(currentStr);
+
+            (!isNaN(currentDate)) && dates.push(new Date(currentDate));
+        }
     }
     return dates;
 }
 
 class Note {
-    constructor(id, name, dateOfCreation, category, content) {
-        id ? (this.id = id) : (this.id = uid());
+    constructor(id, name, dateOfCreation = '', category, content) {
+        id ? (this.id = '' + id) : (this.id = uid());
         this.name = name;
         dateOfCreation ? (this.dateOfCreation = dateOfCreation) : (this.dateOfCreation = new Date());
         this.category = category;
@@ -76,10 +79,12 @@ function createElem(tagName, parent, idName = '', className = '', innerTxt = '',
 function deleteElem(id, tabBodyTr) {
     tabBodyTr.parentNode.removeChild(tabBodyTr);
     notes = notes.filter(note => note.id !== id);
+    clearAndHideForm();
 }
 
-function actElem(id, tabBodyTr) {
-    tabBodyTr.parentNode.removeChild(tabBodyTr);
+function actElem(id, tabBodyTr = '') {
+    (tabBodyTr !== '') && (tabBodyTr.parentNode.removeChild(tabBodyTr));
+
     for (let i = 0; i < notes.length; i++) {
         const note = notes[i];
         if (note.id === id) {
@@ -87,9 +92,12 @@ function actElem(id, tabBodyTr) {
 
             let idName = note.active ? 'activeNotes' : 'inactiveNotes';
             let tabBody = document.getElementById(idName + '_tabBody');
-            createTabBodyTr(columns, note, tabBody, idName);
+            let tabBodyTr = createElem('tr', tabBody);
+            createTabBodyTr(columns, note, tabBodyTr, idName);
         }
     }
+
+    clearAndHideForm();
 }
 
 function create(note, tabBodyTr = null) {
@@ -110,6 +118,17 @@ function create(note, tabBodyTr = null) {
     (!note.content) && (form.content.value = '');
 }
 
+function clearAndHideForm() {
+    editingTableRow = null;
+
+    let form = document.forms[0];
+    form.hidden = true;
+
+    form.id.value = '';
+    form.noteName.value = '';
+    form.content.value = '';
+}
+
 function editElem(id, tabBodyTr) {
     let notesById = notes.filter(note => note.id === id);
     create(notesById[0], tabBodyTr);
@@ -128,14 +147,28 @@ function saveElem(form) {
             note.content = form.content.value;
             note.dates = parseDates(note.content);
 
-
-            let idName = note.active ? 'activeNotes' : 'inactiveNotes';
-            let tabBody = document.getElementById(idName + '_tabBody');
-            createTabBodyTr(columns, note, tabBody, idName);
+            while (editingTableRow.firstChild) {
+                editingTableRow.firstChild.remove();
+            }
+            createTabBodyTr(columns, note, editingTableRow, (note.active) ? 'activeNotes' : 'inactiveNotes');
+            break;
         }
     }
+    if (isNew) {
+        notes.push(new Note(
+            form.id.value,
+            form.noteName.value,
+            '',
+            form.category.value,
+            form.content.value
+        ));
 
+        const note = notes[notes.length - 1];
+        note.active = false;
+        actElem(note.id);
+    }
 
+    clearAndHideForm();
 }
 
 function createForm(parent, idName) {
@@ -174,31 +207,26 @@ function createForm(parent, idName) {
     return form;
 }
 
-function fillRow(columns, dataArrElement, parent) {
-    for (const column of columns) {
-        createElem('td', parent, '', '', dataArrElement[column]);
-    }
-}
-
 function createTabBodyTr(columns = [], dataArrElement = {}, parent, idName) {
 
     const {id} = dataArrElement;
 
-    let tabBodyTr = createElem('tr', parent);
-    fillRow(columns, dataArrElement, tabBodyTr);
+    for (const column of columns) {
+        createElem('td', parent, '', '', dataArrElement[column]);
+    }
 
-    let tabBodyTrEdit = createElem('td', tabBodyTr);
+    let tabBodyTrEdit = createElem('td', parent);
     let btnEdit = createElem('button', tabBodyTrEdit, '', '', 'Edit');
-    btnEdit.onclick = () => editElem(id, tabBodyTr);
+    btnEdit.onclick = () => editElem(id, parent);
 
-    let tabBodyTrActive = createElem('td', tabBodyTr);
+    let tabBodyTrActive = createElem('td', parent);
     const btnInnerText = (idName === 'activeNotes' ? 'Inactive' : 'Active');
     let btnAct = createElem('button', tabBodyTrActive, '', '', btnInnerText);
-    btnAct.onclick = () => actElem(id, tabBodyTr);
+    btnAct.onclick = () => actElem(id, parent);
 
-    let tabBodyTrDel = createElem('td', tabBodyTr);
+    let tabBodyTrDel = createElem('td', parent);
     let btnDel = createElem('button', tabBodyTrDel, '', '', 'Delete');
-    btnDel.onclick = () => deleteElem(id, tabBodyTr);
+    btnDel.onclick = () => deleteElem(id, parent);
 }
 
 function createTable(columns = [], dataArr = [], parent, idName) {
@@ -226,7 +254,8 @@ function createTable(columns = [], dataArr = [], parent, idName) {
     let tabBody = createElem('tbody', tab, idName + '_tabBody');
     for (let i = 0; i < dataArr.length; i++) {
         const dataArrElement = dataArr[i];
-        createTabBodyTr(columns, dataArrElement, tabBody, idName)
+        let tabBodyTr = createElem('tr', tabBody);
+        createTabBodyTr(columns, dataArrElement, tabBodyTr, idName)
     }
     return tab;
 }
